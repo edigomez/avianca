@@ -22,7 +22,7 @@ ALTER SYSTEM SET UNDO_TABLESPACE = UNDOTBS;
 unlimited space on the tablespace (The user should have permission to connect) (0.125)
 */
 
--- CREACION DE USUARIO usr_gt
+-- CREACION DE USUARIO dba_edjuan1
 CREATE USER dba_edjuan1
 IDENTIFIED BY dba_edjuan1
 DEFAULT TABLESPACE avianca 
