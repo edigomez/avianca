@@ -1,0 +1,95 @@
+/*
+2. Create 2 Tablespaces (0.125) :
+a. first one with 2 Gb and 1 datafile, tablespace should be named " avianca "
+b. Undo tablespace with 25Mb of space and 1 datafile
+*/
+-- a.
+CREATE TABLESPACE avianca DATAFILE
+'c:\avianca1\avianca01.dbf' SIZE 2048M
+    EXTENT MANAGEMENT LOCAL 
+    SEGMENT SPACE MANAGEMENT AUTO;
+
+--b.
+CREATE UNDO TABLESPACE UNDOTBS DATAFILE 'c:\avianca1\undotbs_01.dbf' SIZE 25M;
+
+/*
+3. Set the undo tablespace to be used in the system (0.125)
+*/
+ALTER SYSTEM SET UNDO_TABLESPACE = UNDOTBS;
+
+/*
+4. Create a DBA user (with the role DBA) and assign it to the tablespace called " avianca ", this user has
+unlimited space on the tablespace (The user should have permission to connect) (0.125)
+*/
+
+-- CREACION DE USUARIO usr_gt
+CREATE USER dba_edjuan1
+IDENTIFIED BY dba_edjuan1
+DEFAULT TABLESPACE avianca 
+QUOTA UNLIMITED ON avianca;
+
+GRANT DBA,CONNECT TO dba_edjuan1;
+
+/*
+5. Create 2 profiles. (0.125)
+a. Profile 1: "clerk" password life 40 days, one session per user, 10 minutes idle, 4 failed login
+attempts
+b. Profile 3: "development " password life 100 days, two session per user, 30 minutes idle, no
+failed login attempts
+*/
+-- a.
+CREATE PROFILE clerk LIMIT 
+	PASSWORD_LIFE_TIME 40
+  SESSIONS_PER_USER  1 
+  IDLE_TIME 10
+	FAILED_LOGIN_ATTEMPTS 4; 
+
+--b.
+CREATE PROFILE development LIMIT 
+	PASSWORD_LIFE_TIME 100
+  SESSIONS_PER_USER  2 
+  IDLE_TIME 30
+	FAILED_LOGIN_ATTEMPTS UNLIMITED;
+
+/*
+6. Create 4 users, assign them the tablespace " avianca "; 2 of them should have the clerk profile and the
+remaining the development profile, all the users should be allow to connect to the database. (0.125)
+*/
+
+CREATE USER user1_clerk 
+    IDENTIFIED BY pwd_user1 
+    DEFAULT TABLESPACE avianca 
+    QUOTA 10M ON avianca 
+    PROFILE clerk
+    PASSWORD EXPIRE;
+GRANT CONNECT TO user1_clerk;
+
+CREATE USER user2_clerk 
+    IDENTIFIED BY pwd_user2 
+    DEFAULT TABLESPACE avianca 
+    QUOTA 10M ON avianca 
+    PROFILE clerk
+    PASSWORD EXPIRE;
+GRANT CONNECT TO user2_clerk;
+
+CREATE USER user3_development 
+    IDENTIFIED BY pwd_user3
+    DEFAULT TABLESPACE avianca 
+    QUOTA 10M ON avianca 
+    PROFILE development 
+    PASSWORD EXPIRE;
+GRANT CONNECT TO user3_development;
+
+CREATE USER user4_development 
+    IDENTIFIED BY pwd_user4
+    DEFAULT TABLESPACE avianca 
+    QUOTA 10M ON avianca 
+    PROFILE development 
+    PASSWORD EXPIRE;
+GRANT CONNECT TO user4_development;
+
+
+/*
+7. Lock one user associate with clerk profile (0.125)
+*/
+ALTER USER user1_clerk ACCOUNT LOCK;
