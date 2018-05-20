@@ -1,0 +1,53 @@
+/*1) Se desea asignar un avión a un vuelo confirmado, para esto es necesario una vista que dado el id de
+un vuelo confirmado, busque los aviones que se encuentran en el aeropuerto de salida (Utilizando la
+hora estimada de llegada a esa ciudad / aeropuerto de otros vuelos) 2 horas antes de la fecha
+estimada de salida.*/
+
+/* De esta manera podemos asignar a variable en el contexto el valor como parámetro para la vista construida*/
+
+CREATE CONTEXT ctx_view USING pk_ctx_view;
+
+
+CREATE OR REPLACE PACKAGE pk_ctx_view AS
+  -- El contexto tendra un unico valor deptno
+  PROCEDURE set_FLIGHTCONFIRMID (FLIGHTCONFIRMID IN NUMBER);
+END;
+/
+
+CREATE OR REPLACE PACKAGE BODY pk_ctx_view AS
+  PROCEDURE set_FLIGHTCONFIRMID (FLIGHTCONFIRMID IN NUMBER) IS
+  BEGIN
+    DBMS_SESSION.SET_CONTEXT('ctx_view', 'FLIGHTCONFIRMID', FLIGHTCONFIRMID);
+  END;
+END;
+
+
+BEGIN
+pk_ctx_view.set_FLIGHTCONFIRMID(101);----129--101
+END;
+
+
+/* Se crea vista según indicaciones recibiendo como parámetro la variable de contexto creada */
+CREATE or REPLACE VIEW AircraftEstimateArrival_by_FLIGHTCONFIRMID AS
+
+select FlightsConfirmed.FLIGHTCONFIRMID,  FlightsConfirmed.AIRCRAFTID, FlightsConfirmed.HOURESTIMATEARRIVAL as DateStimateArrivalAirport
+from 
+    (select ro.AIRPORTDEPARTUREID, fc_find.HOURESTIMATEDEPARTURE, a.NAME 
+    from FlightsConfirmed fc_find
+    inner join FLIGHTS f on f.FLIGHTCONFIRMID = fc_find.FLIGHTCONFIRMID
+    inner join ROUTESPROGRAMMING r on r.ROUTEPROGRAMMINGID = f.ROUTEPROGRAMMINGID
+    inner join routes ro on   ro.ROUTEID =  r.routeId
+    inner join AIRPORTS a on a.AIRPORTID = ro.AIRPORTDEPARTUREID
+    where fc_find.FLIGHTCONFIRMID=sys_context('ctx_view','FLIGHTCONFIRMID') 
+    and fc_find.AIRCRAFTID is null) FlightConfirmedAircraft
+ Inner join    routes on routes.AIRPORTARRIVALID = FlightConfirmedAircraft.AIRPORTDEPARTUREID
+ inner join ROUTESPROGRAMMING on ROUTESPROGRAMMING.ROUTEID = routes.ROUTEID
+ inner join FLIGHTS on FLIGHTS.ROUTEPROGRAMMINGID = ROUTESPROGRAMMING.ROUTEPROGRAMMINGID
+ inner join FlightsConfirmed on FlightsConfirmed.FLIGHTCONFIRMID = FLIGHTS.FLIGHTCONFIRMID
+ where FlightsConfirmed.HOURESTIMATEARRIVAL <= FlightConfirmedAircraft.HOURESTIMATEDEPARTURE -INTERVAL '2'hour  
+ and FlightsConfirmed.AIRCRAFTID Not In (Select AIRCRAFTID from FlightsConfirmed where status='Confirmado' and AIRCRAFTID is not null )
+ order by FlightsConfirmed.HOURESTIMATEARRIVAL ;
+ 
+ 
+ 
+ 
