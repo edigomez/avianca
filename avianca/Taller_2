@@ -239,3 +239,49 @@ from FLIGHTSCONFIRMED Fc
 Inner join FLIGHTSDETAILSCREWS Fdc on Fc.FLIGHTCONFIRMID = Fdc.FLIGHTCONFIRMID
 Inner join AIRCREWS A on A.AIRCREWID = Fdc.AIRCREWID
 inner join TYPESAIRCREW T on T.TYPEAIRCREWID = A.TYPEAIRCREWID;
+
+
+
+/*
+
+5) Construya una vista que dado un aeropuerto origen y un aeropuerto destino (Ruta), muestre todos los
+vuelos programados desde el momento en que se está ejecutando el query hasta 2 semanas
+después, debe mostrar el número del vuelo, la hora y la fecha programada de salida (0.2)
+
+*/
+
+CREATE or REPLACE VIEW View_Get_Fligths AS
+
+Select Ad.Name AS AirportDeparture, Aa.Name As AirportArrival, Rp.FLIGHTNUMBER, Fc.HourEstimateDeparture 
+from ROUTES R
+Inner Join RoutesProgramming Rp on Rp.ROUTEID = R.ROUTEID
+inner join Flights F on F.ROUTEPROGRAMMINGID = Rp.ROUTEPROGRAMMINGID
+Inner Join FlightsConfirmed Fc on Fc.FLIGHTCONFIRMID = F.FLIGHTCONFIRMID
+Inner join AIRPORTS Ad on Ad.AirportId = R.AIRPORTDEPARTUREID
+Inner Join AIRPORTS Aa on Aa.AirportId = R.AIRPORTARRIVALID
+where  Fc.HourEstimateDeparture >= (select TO_TIMESTAMP(SYSDATE, 'YYYY-MM-DD HH24:MI:SS.FF') FROM DUAL) ;
+
+
+/*6) Realizar un EXPLAIN PLAN de las vistas en los puntos 2, 5 y 6. (0.3)*/
+
+--EXPLAIN PLAN Vista Punto 2
+EXPLAIN PLAN SET STATEMENT_ID = 'Vista2' FOR
+  select * from AircraftEstimateArrival_by_FLIGHTCONFIRMID;
+  
+sELECT * FROM TABLE(dbms_xplan.display);
+  
+--EXPLAIN PLAN Vista Punto 4
+EXPLAIN PLAN SET STATEMENT_ID = 'Vista4' FOR
+select * from View_Get_Aircrew
+where FLIGHTCONFIRMID =129;
+
+
+sELECT * FROM TABLE(dbms_xplan.display);
+
+--EXPLAIN PLAN Vista Punto 5
+EXPLAIN PLAN SET STATEMENT_ID = 'Vista5' FOR 
+select * from View_Get_Fligths
+where AirportDeparture like '%Jose%' and AIRPORTARRIVAL like '%Miami%';
+
+sELECT * FROM TABLE(dbms_xplan.display);
+
