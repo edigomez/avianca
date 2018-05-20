@@ -50,4 +50,116 @@ from
  
  
  
+ /*2) Realice un procedimiento almacenado que programe la tripulación del vuelo 5 horas antes del vuelo
+así */
+
+CREATE OR REPLACE PROCEDURE schedule_crew(p_FLIGHTCONFIRMID IN numeric) As
+ HourFlight NUMBER; 
+  TypeAircraft varchar2(20);
+  QuantitySeats number;
+  QuantityTCP number;
+  accountant number:= 1;
+  AircrafValidate number;
+
+
+BEGIN
+    
+    --Se obtiene AIRCRAFTID para validar si el vuelo ya tiene avion asignado
+    Select AIRCRAFTID into AircrafValidate
+    from FLIGHTSCONFIRMED
+    where FLIGHTCONFIRMID =p_FLIGHTCONFIRMID;
+    
+    If(AircrafValidate is null) Then --solo se ejecuta la logica si el vuelo no tiene avion asignado
+    
+--a) Invocar la vista del punto dos y asignar el primer avión encontrado.
+    
+    Update FlightsConfirmed
+    set AIRCRAFTID = (select  AIRCRAFTID from AIRCRAFTESTIMATEARRIVAL_BY_FLIGHTCONFIRMID FETCH NEXT 1 ROWS ONLY)
+    where FLIGHTCONFIRMID =p_FLIGHTCONFIRMID; -- validar para mandar como parametro
+    
+    begin
+    --Se obtienen los valores de hora de vuelo y cantidad de asientos en cada clase del avi{on asignado
+    SELECT  ro.QUANTITYAVERAGEHOURS,TYPESAIRCRAFT.CODETYPE,(TYPESAIRCRAFT.QUANTITYSEATSBUSINESS+TYPESAIRCRAFT.QUANTITYSEATSECONOMY)  INTO HourFlight, TypeAircraft, QuantitySeats
+     from FlightsConfirmed fc_find
+    inner join FLIGHTS f on f.FLIGHTCONFIRMID = fc_find.FLIGHTCONFIRMID
+    inner join ROUTESPROGRAMMING r on r.ROUTEPROGRAMMINGID = f.ROUTEPROGRAMMINGID
+    inner join routes ro on   ro.ROUTEID =  r.routeId
+    inner join AIRCRAFTS on AIRCRAFTS.AIRCRAFTID = fc_find.AIRCRAFTID
+    inner join TYPESAIRCRAFT on  TYPESAIRCRAFT.TYPE_AIRCRAFTID = AIRCRAFTS.TYPE_AIRCRAFTID
+    where fc_find.FLIGHTCONFIRMID=p_FLIGHTCONFIRMID;--p_FLIGHTCONFIRMID;
+   
+   EXCEPTION
+      WHEN NO_DATA_FOUND THEN
+        HourFlight := NULL;
+        TypeAircraft := NULL;
+        QuantitySeats := NULL;
+        
+    End;
+    
+    
+
+/*b) Con la información del vuelo debe asignar:
+i) El piloto y el copiloto:
+(1) Para la simplicidad del ejercicio, busque los pilotos que se encuentran activos, tienen al menos 2 horas de descanso y se encuentran en la ciudad donde parte el vuelo.
+1	Piloto
+2	Copiloto */
+    
+    Insert into FLIGHTSDETAILSCREWS(AIRCREWID, FLIGHTCONFIRMID) 
+select AIRCREWID,(p_FLIGHTCONFIRMID) from AIRCREWS where TYPEAIRCREWID =1 and STATUSCREWID =2 and HOURSBREAKTIME >=2 FETCH NEXT 1 ROWS ONLY; -- piloto
+
+
+Insert into FLIGHTSDETAILSCREWS(AIRCREWID, FLIGHTCONFIRMID) 
+select AIRCREWID,(p_FLIGHTCONFIRMID) from AIRCREWS where TYPEAIRCREWID =2 and STATUSCREWID =2 and HOURSBREAKTIME >=2 FETCH NEXT 1 ROWS ONLY; -- copiloto
+
+/* ii) La tripulación siguiendo la lógica del taller anterior dependiendo del número de horas
+del vuelo programado y la cantidad de sillas del avión.
+(1) También por simplicidad del ejercicio se debe buscar los auxiliares de vuelo
+que tienen al menos 2 horas de descanso, que estén activos y que se
+encuentren en la ciudad donde parte el vuelo.
+ >19 asientos 1 aux
+50 -99 2 aux
+100-149 3 aux
+150--200 4 aux
+airbus 380 18 aux
+vuelos de mas de 6 horas 1 aux de reemplazo
+*/
+QuantityTCP := 
+    Case 
+    When QuantitySeats>19 AND QuantitySeats<50 Then 1
+    When QuantitySeats>=50 AND QuantitySeats<100 Then 2
+    When QuantitySeats>=100 AND QuantitySeats<150 Then 3
+    When QuantitySeats>=150 AND QuantitySeats<200 Then 4
+    When QuantitySeats>=200 AND QuantitySeats<250 Then 5
+    When QuantitySeats>=250 AND QuantitySeats<300 Then 6
+    When QuantitySeats>=300 AND QuantitySeats<350 Then 7
+    When TypeAircraft='A380' Then 18 END;
+    
+     if (HourFlight >=6) then --Valida si el vuelo es de 6 horas para asignar 1 tcp de reemplazo
+    QuantityTCP := ++QuantityTCP;
+     End If;
+
+--De acuero a la cantidad de TCP se insertan uno a uno en la tabla 
+FOR j In 1..QuantityTCP
+     LOOP
+    Insert into FLIGHTSDETAILSCREWS(AIRCREWID, FLIGHTCONFIRMID) 
+    select AIRCREWID,(p_FLIGHTCONFIRMID) 
+    from AIRCREWS where TYPEAIRCREWID =3 and STATUSCREWID =2 and HOURSBREAKTIME >=2  
+    and NOT EXISTS (SELECT FLIGHTSDETAILSCREWS.FLIGHTCONFIRMID FROM FLIGHTSDETAILSCREWS WHERE AIRCREWS.AIRCREWID =FLIGHTSDETAILSCREWS.AIRCREWID AND FLIGHTSDETAILSCREWS.FLIGHTCONFIRMID = (p_FLIGHTCONFIRMID) )
+    FETCH NEXT 1 ROWS ONLY; -- Auxiliares
+    
+    END LOOP;
+   /*c) Actualizar el estado del vuelo a “Confirmado” */ 
+    
+    update FlightsConfirmed
+    set STATUS='Confirmado'
+    WHERE FLIGHTCONFIRMID=(p_FLIGHTCONFIRMID);
+    
+    DBMS_OUTPUT.PUT_LINE(HourFlight||'-'||TypeAircraft||'-'||QuantitySeats ||'-'|| QuantityTCP);
+    
+    Else 
+    --Mensaje que indica que la cantidad de sillas del avi{on en clase indicada esta full
+    DBMS_OUTPUT.PUT_LINE('Aircraft already assigned'); 
+    End If;
+End;
+
  
