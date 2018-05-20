@@ -163,3 +163,65 @@ FOR j In 1..QuantityTCP
 End;
 
  
+ 
+ 
+ /*
+3) Construya un procedimiento que permita hacer el checking de los pasajeros, para esto se debe pasar
+el id del vuelo confirmado, el id del pasajero y el tipo de silla que tiene (Ejecutiva, Económica) (0.5) .
+a) Por cada checking exitoso actualice la cantidad de pasajeros en la tabla del vuelo confirmado
+dependiendo de la silla que tenga.
+b) Se debe validar que la cantidad de pasajeros no supere la cantidad de sillas del avión
+asignado. En caso de ser superior el procedimiento simplemente se ejecutará pero no
+mostrará ningún error y tampoco modificará las tablas existentes.*/
+
+CREATE OR REPLACE PROCEDURE MakeCheckin(PassegerId   NUMBER ,p_FLIGHTCONFIRMID NUMBER ,EmergencyContact varchar2,CityEmergencyContactIdId Number,EmailEmergencyContact varchar2,
+    EmergencyContactPhoneNumber varchar2, SeatType Varchar2)
+    As
+    
+    Quantity_seatsBusiness_occupied Number;
+    Quantity_seatsEconomy_occupied Number;
+    Quantity_seatsBusiness_Capacity Number;
+    Quantity_seatsEconomy_Capacity Number;
+    AircraftConfirm Number;
+    
+BEGIN
+
+--Se obtienen valores de la cantidad de sillas ocupadas al momento en vuelo indicado
+Select AIRCRAFTID,PASSENGER_QUANTITY_ECONOMY, PASSENGER_QUANTITY_BUSINESS  Into AircraftConfirm ,Quantity_seatsEconomy_occupied ,Quantity_seatsBusiness_occupied 
+from FlightsConfirmed where FLIGHTCONFIRMID = p_FLIGHTCONFIRMID;
+
+--Se consulta la cantidad de sillas en cada clase paraq el tipo de avion asignado en el vuelo
+Select T.QuantitySeatsBusiness, T.QuantitySeatsEconomy Into Quantity_seatsBusiness_Capacity,Quantity_seatsEconomy_Capacity from AIRCRAFTS A
+Inner join TYPESAIRCRAFT T on T.TYPE_AIRCRAFTID = A.TYPE_AIRCRAFTID
+where AIRCRAFTID =AircraftConfirm;
+
+--Se realizan las validaciones de tipo de silla y cantidades disponibles en avi{on asignado
+ If(SeatType='Economy') Then
+  if(Quantity_seatsEconomy_Capacity>Quantity_seatsEconomy_occupied) Then 
+  
+    Insert Into CHECKIN ( PassegerId , FlightConfirmId ,	EmergencyContact,	CityEmergencyContactIdId ,EmailEmergencyContact ,EmergencyContactPhoneNumber , SeatType)
+    Values(PassegerId,p_FLIGHTCONFIRMID,EmergencyContact,CityEmergencyContactIdId,EmailEmergencyContact,EmergencyContactPhoneNumber,SeatType);
+
+    Update FlightsConfirmed
+    set PASSENGER_QUANTITY_ECONOMY = PASSENGER_QUANTITY_ECONOMY+1
+    Where FLIGHTCONFIRMID=p_FLIGHTCONFIRMID;
+    
+    else  DBMS_OUTPUT.PUT_LINE('Seat excede aircraft limit'); 
+  End If;
+ELSIF (SeatType='Business') Then
+    if(Quantity_seatsBusiness_Capacity>Quantity_seatsBusiness_occupied) Then 
+      Insert Into CHECKIN ( PassegerId , FlightConfirmId ,	EmergencyContact,	CityEmergencyContactIdId ,EmailEmergencyContact ,EmergencyContactPhoneNumber , SeatType)
+     Values(PassegerId,p_FLIGHTCONFIRMID,EmergencyContact,CityEmergencyContactIdId,EmailEmergencyContact,EmergencyContactPhoneNumber,SeatType);
+
+    --Se aumenta actualiza la cantidad de sillas ocupadas en el avi{on
+    Update FlightsConfirmed
+      set Passenger_Quantity_Business = Passenger_Quantity_Business+1
+      Where FLIGHTCONFIRMID=p_FLIGHTCONFIRMID;
+      
+      else  DBMS_OUTPUT.PUT_LINE('Seat excede aircraft limit'); 
+  End If;
+End If;
+--DBMS_OUTPUT.PUT_LINE(Quantity_seatsBusiness_Capacity||'-'||Quantity_seatsEconomy_Capacity||'-'||Quantity_seatsBusiness_occupied||'-'||Quantity_seatsEconomy_occupied);
+
+END;
+  
