@@ -225,3 +225,17 @@ End If;
 
 END;
   
+
+
+/*
+4) Construya una vista que dado un id de un vuelo pasado o confirmado, muestre el listado de personal
+asignado al vuelo, tanto pilotos como auxiliares de vuelo). Debe haber una columna que identifique
+quien es el piloto, quién es el copiloto y quienes son los auxiliares de vuelo. (0.2)
+*/
+CREATE or REPLACE VIEW View_Get_Aircrew AS
+
+select Fc.FLIGHTCONFIRMID, T.DESCRIPTION, (A.FIRSTNAME ||' '|| A.LASTNAME) As Nombre
+from FLIGHTSCONFIRMED Fc
+Inner join FLIGHTSDETAILSCREWS Fdc on Fc.FLIGHTCONFIRMID = Fdc.FLIGHTCONFIRMID
+Inner join AIRCREWS A on A.AIRCREWID = Fdc.AIRCREWID
+inner join TYPESAIRCREW T on T.TYPEAIRCREWID = A.TYPEAIRCREWID;
